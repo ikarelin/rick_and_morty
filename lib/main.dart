@@ -4,14 +4,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'features/characters/data/models/character_model.dart';
+import 'features/characters/data/repositories/character_repository.dart';
+import 'features/characters/data/services/character_service.dart';
 import 'features/characters/presentation/screens/characters_screen.dart';
+import 'features/data/network/api_client.dart';
 import 'features/favorites/presentation/screens/favorites_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
+
+// Провайдеры для зависимостей
+final apiClientProvider = Provider<ApiClient>((ref) {
+  return ApiClient(baseUrl: 'https://rickandmortyapi.com/api');
+});
+
+final characterServiceProvider = Provider<CharacterService>((ref) {
+  return CharacterService(apiClient: ref.watch(apiClientProvider));
+});
+
+final characterRepositoryProvider = Provider<CharacterRepository>((ref) {
+  return CharacterRepository(
+    characterService: ref.watch(characterServiceProvider),
+    cacheBox: Hive.box<CharacterModel>('characters'),
+  );
+});
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
-  await Hive.openBox('characters');
+  Hive.registerAdapter(CharacterModelAdapter());
+  await Hive.openBox<CharacterModel>('characters');
   await Hive.openBox('favorites');
   await Hive.openBox('settings');
   runApp(const ProviderScope(child: MyApp()));
@@ -36,7 +57,7 @@ class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  _MainScreenState createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
@@ -58,11 +79,10 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: SafeArea(
-        // Добавляем SafeArea для учета системных отступов
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: Container(
-            height: 90, // Оставляем высоту 90, но с SafeArea должно хватить
+            height: 90,
             decoration: BoxDecoration(
               color: Theme.of(context).brightness == Brightness.light
                   ? Colors.white.withOpacity(0.3)
@@ -135,7 +155,6 @@ class _MainScreenState extends State<MainScreen> {
                   : Theme.of(context).iconTheme.color?.withOpacity(0.5),
               size: 24,
             ),
-            // Убрали SizedBox, чтобы минимизировать высоту
             Text(
               label,
               style: TextStyle(
