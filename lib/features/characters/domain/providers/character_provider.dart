@@ -34,14 +34,23 @@ class CharacterNotifier extends StateNotifier<AsyncValue<List<Character>>> {
     loadCharacters();
   }
 
+  // Публичный геттер для проверки состояния пагинации
+  bool get hasMore => _hasMore;
+
   Future<void> loadCharacters() async {
     if (!_hasMore) return;
 
     state = const AsyncValue.loading();
     try {
       final characters = await repository.getCharacters(_page);
-      state = AsyncValue.data(characters);
-      _page++;
+      if (characters.isEmpty) {
+        _hasMore = false; // Устанавливаем false, если больше нет данных
+      } else {
+        state = AsyncValue.data(
+          state.value?.followedBy(characters).toList() ?? characters,
+        );
+        _page++;
+      }
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
     }
