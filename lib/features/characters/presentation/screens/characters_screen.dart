@@ -7,30 +7,52 @@ class CharactersScreen extends ConsumerStatefulWidget {
   const CharactersScreen({super.key});
 
   @override
-  _CharactersScreenState createState() => _CharactersScreenState();
+  CharactersScreenState createState() => CharactersScreenState();
 }
 
-class _CharactersScreenState extends ConsumerState<CharactersScreen> {
+class CharactersScreenState extends ConsumerState<CharactersScreen> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
+    final notifier = ref.read(characterProvider.notifier);
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200 &&
-        ref.read(characterProvider.notifier).hasMore) {
-      ref.read(characterProvider.notifier).loadCharacters();
+        notifier.hasMore &&
+        !_isSearching) {
+      // Отключаем пагинацию во время поиска
+      notifier.loadCharacters();
     }
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text;
+    ref.read(characterProvider.notifier).filterCharacters(query);
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearching = !_isSearching;
+      if (!_isSearching) {
+        _searchController.clear();
+        ref.read(characterProvider.notifier).resetFilter();
+      }
+    });
   }
 
   @override
@@ -38,7 +60,40 @@ class _CharactersScreenState extends ConsumerState<CharactersScreen> {
     final charactersState = ref.watch(characterProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Персонажи')),
+      appBar: AppBar(
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Theme.of(context).appBarTheme.titleTextStyle?.color,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Поиск по имени...',
+                  hintStyle: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).textTheme.headlineSmall?.color?.withOpacity(0.5),
+                      ),
+                  border: InputBorder.none,
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref.read(characterProvider.notifier).resetFilter();
+                    },
+                  ),
+                ),
+              )
+            : const Text('Персонажи'),
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: _toggleSearch,
+          ),
+        ],
+      ),
       body: charactersState.when(
         data: (characters) => NotificationListener<ScrollNotification>(
           onNotification: (notification) {
@@ -47,12 +102,20 @@ class _CharactersScreenState extends ConsumerState<CharactersScreen> {
           },
           child: ListView.builder(
             controller: _scrollController,
-            itemCount: characters.length,
+            itemCount:
+                characters.length +
+                (ref.read(characterProvider.notifier).hasMore && !_isSearching
+                    ? 1
+                    : 0),
             itemBuilder: (context, index) {
+              if (index == characters.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
               final character = characters[index];
-              return CharacterCard(
-                character: character, // Убрали onFavoriteToggle
-              );
+              return CharacterCard(character: character);
             },
           ),
         ),
