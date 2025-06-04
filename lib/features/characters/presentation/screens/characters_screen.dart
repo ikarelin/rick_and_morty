@@ -51,13 +51,7 @@ class _CharactersScreenState extends ConsumerState<CharactersScreen> {
             itemBuilder: (context, index) {
               final character = characters[index];
               return CharacterCard(
-                character: character,
-                onFavoriteToggle: () {
-                  // Заглушка, доработаем позже
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Добавлено в избранное!')),
-                  );
-                },
+                character: character, // Убрали onFavoriteToggle
               );
             },
           ),

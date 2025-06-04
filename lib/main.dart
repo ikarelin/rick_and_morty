@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'data/network/api_client.dart';
 import 'features/characters/data/models/character_model.dart';
 import 'features/characters/data/repositories/character_repository.dart';
 import 'features/characters/data/services/character_service.dart';
@@ -11,6 +12,7 @@ import 'features/characters/presentation/screens/characters_screen.dart';
 import 'features/data/network/api_client.dart';
 import 'features/favorites/presentation/screens/favorites_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
+import 'features/favorites/domain/providers/favorite_provider.dart';
 
 // Провайдеры для зависимостей
 final apiClientProvider = Provider<ApiClient>((ref) {
@@ -32,8 +34,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   Hive.registerAdapter(CharacterModelAdapter());
+  Hive.registerAdapter(
+    FavoriteCharacterAdapter(),
+  ); // Обновляем на текущую модель
   await Hive.openBox<CharacterModel>('characters');
-  await Hive.openBox('favorites');
+  await Hive.openBox<FavoriteCharacter>('favorites'); // Исправляем тип коробки
   await Hive.openBox('settings');
   runApp(const ProviderScope(child: MyApp()));
 }

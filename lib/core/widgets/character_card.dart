@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/characters/domain/entities/character.dart';
+import '../../features/favorites/domain/providers/favorite_provider.dart';
 
 class CharacterCard extends ConsumerWidget {
   final Character character;
-  final VoidCallback onFavoriteToggle;
 
-  const CharacterCard({
-    super.key,
-    required this.character,
-    required this.onFavoriteToggle,
-  });
+  const CharacterCard({super.key, required this.character});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isFavorite = false; // Заглушка, доработаем позже
+    final favorites = ref.watch(favoriteProvider);
+    final isFavorite = favorites.any((fc) => fc.character.id == character.id);
 
     return Card(
       color: Theme.of(context).cardColor,
@@ -40,12 +37,34 @@ class CharacterCard extends ConsumerWidget {
           '${character.status} - ${character.species}',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-        trailing: IconButton(
-          icon: Icon(
-            isFavorite ? Icons.star : Icons.star_border,
-            color: isFavorite ? Theme.of(context).primaryColor : null,
+        trailing: AnimatedSwitcher(
+          duration: const Duration(
+            milliseconds: 300,
+          ), // Плавная анимация 300 мс
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return ScaleTransition(scale: animation, child: child);
+          },
+          child: IconButton(
+            key: ValueKey<bool>(
+              isFavorite,
+            ), // Уникальный ключ для триггера анимации
+            icon: Icon(
+              isFavorite ? Icons.star : Icons.star_border,
+              color: isFavorite ? Theme.of(context).primaryColor : null,
+            ),
+            onPressed: () {
+              ref.read(favoriteProvider.notifier).toggleFavorite(character);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    isFavorite
+                        ? 'Удалено из избранного!'
+                        : 'Добавлено в избранное!',
+                  ),
+                ),
+              );
+            },
           ),
-          onPressed: onFavoriteToggle,
         ),
       ),
     );
